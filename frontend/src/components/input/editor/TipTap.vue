@@ -152,7 +152,7 @@
 					{{ $t('misc.save') }}
 				</BaseButton>
 			</li>
-			<li v-if="!isEditing">
+			<li v-if="!isEditing && isEditEnabled">
 				<BaseButton
 					class="done-edit"
 					@click="() => setEdit()"
@@ -193,6 +193,7 @@ import EditorToolbar from './EditorToolbar.vue'
 import {Extension, isTextSelection, mergeAttributes, type SetContentOptions} from '@tiptap/core'
 import {EditorContent, type Extensions, useEditor, VueNodeViewRenderer} from '@tiptap/vue-3'
 import type {EditorState} from '@tiptap/pm/state'
+import type {Slice} from '@tiptap/pm/model'
 import type {EditorView} from '@tiptap/pm/view'
 import {BubbleMenu} from '@tiptap/vue-3/menus'
 
@@ -200,6 +201,7 @@ import Mention from '@tiptap/extension-mention'
 
 import {taskLinkCurrentProjectIdKey} from './taskLinkContext'
 import {createEditorExtensions} from './editorExtensions'
+import {createClipboardTextSerializer} from './clipboardText'
 import mentionSuggestionSetup from './mention/mentionSuggestion'
 import MentionUser from './mention/MentionUser.vue'
 import ImageLightbox from '@/components/misc/ImageLightbox.vue'
@@ -343,6 +345,8 @@ if (props.enableDiscardShortcut) {
 	}))
 }
 
+let serializeClipboardText: ((slice: Slice) => string) | null = null
+
 // eslint-disable-next-line vue/no-setup-props-reactivity-loss
 const editor = useEditor({
 	// eslint-disable-next-line vue/no-ref-object-reactivity-loss
@@ -352,6 +356,12 @@ const editor = useEditor({
 	editorProps: {
 		attributes: {
 			'aria-label': props.placeholder || t('input.editor.label'),
+		},
+		// Keeps list markers in the plain text copy. Set as a view prop because it takes
+		// precedence over the clipboard text serializer plugin of tiptap's core.
+		clipboardTextSerializer: (slice, view) => {
+			serializeClipboardText ??= createClipboardTextSerializer(view.state.schema)
+			return serializeClipboardText(slice)
 		},
 	},
 	parseOptions: {
